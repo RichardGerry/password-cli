@@ -33,17 +33,27 @@ class DBVersion(Enum):
     installed = sqlite3.sqlite_version
 
     def __init__(self, version):
-        version_split = version.split(".")
-        if len(version_split) < 3:
-            raise ValueError("db version must have 3 parts: "
-                             "major, minor, patch")
-        self.major, self.minor, self.patch = version_split
+        version_split = map(int, version.split("."))
+        try:
+            self.major, self.minor, self.patch = version_split
+        except ValueError as ve:
+            raise ValueError("db version must have 3 numeric "
+                             "parts: major, minor, patch")
 
     def __ge__(self, other):
         if self.__class__ is other.__class__:
-            return (self.major >= other.major
-                    and self.minor >= other.minor
-                    and self.patch >= other.patch)
+            if self.__eq__(other):
+                return True
+            elif self.major > other.major:
+                return True
+            elif (self.major == other.major
+                  and self.minor > other.minor):
+                return True
+            elif (self.major == other.major
+                  and self.minor == other.minor
+                  and self.patch > other.patch):
+                return True
+            return False
         return NotImplemented
 
     def __eq__(self, other):
