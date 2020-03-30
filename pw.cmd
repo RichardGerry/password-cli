@@ -1,5 +1,3 @@
 @echo off
-set cur_dir=%cd%
-cd "%~dp0/.."
+set "PYTHONPATH=%~dp0/.."
 python -m pw %*
-cd %cur_dir%
