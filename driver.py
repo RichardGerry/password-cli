@@ -1,89 +1,94 @@
 import os
 import sys
+import json
 from argparse import ArgumentParser
 from argparse import FileType
-from pw.db import create_db_instance
-from pw.db import validate_db
+from argparse import ArgumentTypeError
+from pw.db import get_app
+from pw.db import set_app
+from pw.db import del_app
+from pw.db import get_all
+from pw.db import InvalidDBVersion
 
-db = create_db_instance()
-conn = db.conn
-cur = db.cur
 
-cur.execute("""create table if not exists test(
-            app text PRIMARY KEY,
-            user text,
-            password text,
-            createtime text not null,
-            updatetime text not null DEFAULT (datetime('now','localtime'))
-            )""")
+def format_sql_result(js):
+    return json.dumps(js, indent=4)
+
+def get_pw(args):
+    result = get_app(args.app)
+    sys.stdout.write(format_sql_result(result))
+
+def set_pw(args):
+    result = set_app(args.app, args.user, args.password)
+    sys.stdout.write(format_sql_result(result))
+
+def del_pw(args):
+    result = del_app(args.app)
+    sys.stdout.write(format_sql_result(result))
+
+def dump(args):
+    data = get_all(args.all_data)
+    if args.lines:
+        columns = [k for k,_ in data[0].items()]
+        lines = [[v for _,v in row.items()] for row in data]
+        comma_join = ",".join
+        data_str = "\r\n".join(map(comma_join, [columns, *lines])) + "\n"
+    else:
+        data_str = "\n".join(map(format_sql_result, data))
+    _ = args.file.write(data_str)
 
 def validate_pw(pw):
     if len(pw)>8:
         return pw
-    raise ValueError("password needs to be longer than 8 characters")
+    raise ArgumentTypeError("password needs to be longer than 8 characters")
 
-def format_cursor_results(cur, columns=False):
-    data = cur.fetchall()
-    if columns:
-        cols = [i[0] for i in cur.description]
-        data = [cols, *data]
-    return "\r\n".join(["\t".join(row) for row in data])
-
-get_select_stmt = "select user, password from test where app = ?"
-
-def get_pw(args):
-    cur.execute(get_select_stmt,[args.app])
-    print(format_cursor_results(cur))
-
-upsert_stmt = """
-            insert into test(app, user, password, createtime)
-            values (?,?,?,datetime('now','localtime'))
-            on conflict(app) do
-            update set
-            password=excluded.password,
-            user=excluded.user,
-            updatetime=datetime('now','localtime')
-            """
-
-def set_pw(args):
-    bind = [args.app, args.user, args.password]
-    cur.execute(upsert_stmt, bind)
-    conn.commit()
-
-del_stmt = "delete from test where app = ?"
-
-def del_pw(args):
-    cur.execute(del_stmt, [args.app])
-    conn.commit()
-
-def dump(args):
-    if args.all_data:
-        data = cur.execute("select * from test")
-    else:
-        data = cur.execute("select app from test")
-    _ = args.file.write(format_cursor_results(cur, columns=True))
+def create_common_parser():
+    common_parser = ArgumentParser(add_help=False)
+    common_parser.add_argument("app",
+                               type=lambda x: x.lower(),
+                               help="application name for the user/password")
+    return common_parser
 
 def create_parser():
-    parser = ArgumentParser()
+    parser = ArgumentParser(description=("store and retrieve application "
+                                         "user names and passwords"))
     sub = parser.add_subparsers()
+    common_parser = create_common_parser()
     
-    get_parser = sub.add_parser("get")
-    get_parser.add_argument("app")
+    get_parser = sub.add_parser("get",
+                                parents=[common_parser],
+                                help="retrieve an application user/password")
     get_parser.set_defaults(func=get_pw)
     
-    set_parser = sub.add_parser("set")
-    set_parser.add_argument("app")
-    set_parser.add_argument("user", type=lambda x: x.lower())
-    set_parser.add_argument("password", type=validate_pw)
+    set_parser = sub.add_parser("set",
+                                parents=[common_parser],
+                                help="update or add an application user/password")
+    set_parser.add_argument("user",
+                            type=lambda x: x.lower(),
+                            help="application user name")
+    set_parser.add_argument("password",
+                            type=validate_pw,
+                            help="application password")
     set_parser.set_defaults(func=set_pw)
 
-    rm_parser = sub.add_parser("rm")
-    rm_parser.add_argument("app")
+    rm_parser = sub.add_parser("rm",
+                               parents=[common_parser],
+                               help="remove an application user/password")
     rm_parser.set_defaults(func=del_pw)
     
-    list_parser = sub.add_parser("dump")
-    list_parser.add_argument("-f", "--file", type=FileType("w"), default=sys.stdout)
-    list_parser.add_argument("--all-data", action="store_true")
+    list_parser = sub.add_parser("dump", help="output all applications stored")
+    list_parser.add_argument("-f", "--file",
+                             type=FileType("w"),
+                             default=sys.stdout,
+                             help="file to write the output (default is std output)")
+    list_parser.add_argument("--all-data",
+                             action="store_true",
+                             help=("flag to output all app data stored "
+                                   "(default is only output app name)"))
+    list_parser.add_argument("--lines",
+                             action="store_true",
+                             help=("flag to output data in csv format "
+                                   "(default is json)"))
     list_parser.set_defaults(func=dump)
 
     #tbd:
@@ -91,7 +96,11 @@ def create_parser():
     return parser
 
 def main():
-    validate_db()
     parser = create_parser()
     args = parser.parse_args()
-    args.func(args)
+    try:
+        args.func(args)
+    except InvalidDBVersion as err:
+        sys.stdout.write(str(err)+"\n")
+    except:
+        sys.stdout.write("\n\tunexpected error executing command\n")
