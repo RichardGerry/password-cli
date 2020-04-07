@@ -29,10 +29,12 @@ def del_pw(args):
 def dump(args):
     data = get_all(args.all_data)
     if args.lines:
-        columns = [k for k,_ in data[0].items()]
         lines = [[v for _,v in row.items()] for row in data]
+        if args.all_data:
+            columns = [k for k,_ in data[0].items()]
+            lines = [columns, *lines]
         comma_join = ",".join
-        data_str = "\r\n".join(map(comma_join, [columns, *lines])) + "\n"
+        data_str = "\r\n".join(map(comma_join, lines)) + "\n"
     else:
         data_str = "\n".join(map(format_sql_result, data))
     _ = args.file.write(data_str)
