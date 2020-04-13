@@ -1,14 +1,13 @@
-import os
 import sys
 import json
 from argparse import ArgumentParser
 from argparse import FileType
 from argparse import ArgumentTypeError
-from pw.db import get_app
-from pw.db import set_app
-from pw.db import del_app
-from pw.db import get_all
-from pw.db import InvalidDBVersion
+from .db import get_app
+from .db import set_app
+from .db import del_app
+from .db import get_all
+from .db import InvalidDBVersion
 
 
 def format_sql_result(js):
@@ -97,12 +96,15 @@ def create_parser():
     #suggest_parser = sub.add_parser("suggest")
     return parser
 
-def main():
+def cli():
     parser = create_parser()
     args = parser.parse_args()
     try:
         args.func(args)
+        return 0
     except InvalidDBVersion as err:
         sys.stdout.write(str(err)+"\n")
+        return 255
     except:
         sys.stdout.write("\n\tunexpected error executing command\n")
+        return 255
