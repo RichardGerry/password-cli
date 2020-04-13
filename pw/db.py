@@ -9,6 +9,7 @@ __all__ = ["get_app",
            "set_app",
            "del_app",
            "get_all",
+           "Error",
            "InvalidDBVersion"]
 
 CONNECTION_STR = os.path.join(os.path.dirname(__file__), "store")
@@ -104,8 +105,11 @@ class DB(object):
         if DBVersion.installed < DBVersion.required:
             raise InvalidDBVersion("sqlite version {} or higher "
                                    "required. installed version is "
-                                   "{}".format(DBVersion.required.value,
-                                               DBVersion.installed.value))
+                                   "{}. view precompiled binaries "
+                                   "section at {link} for latest version"
+                                   .format(DBVersion.required.value,
+                                           DBVersion.installed.value,
+                                           link="https://sqlite.org/download.html"))
         self.conn = sqlite3.connect(connect_str)
         self.cur = self.conn.cursor()
 
