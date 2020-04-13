@@ -3,15 +3,24 @@
 Command line tool to store and retrieve user names and passwords for the various applications
 you use
 
-All data is stored locally in the repo
+All data is stored locally
+
+
+## Requirements
+
+* python 3.5 or higher
+* sqlite 3.24 or higher
+	+ latest version can be downloaded at https://sqlite.org/download.html (precompiled binaries section)
 
 
 ## Usage
 
-First step after cloning the repo is to add the repo to the `PATH` environment variable
+First step after cloning the repo is to install the package:
+```console
+> pip install path/to/cloned/repo
+```
 
-The tool can then be used with the 'pw' command (assuming there are no other executables on `PATH` called 'pw')
-and the following arguments and sub-arguments:
+The tool can then be used with the 'pw' command and the following arguments and sub-arguments:
 
 * get
 	> retrieve an application user name and password
@@ -25,7 +34,7 @@ and the following arguments and sub-arguments:
     + app (whatever label you want to assign to the following user and password)
 	+ user (user name for the 'app' to save)
 	+ password (password for the 'app' to save)
-		- most be longer than 8 characters
+		- must be longer than 8 characters
 ```console
 > pw set my_gmail some_login some_password
 ```
