@@ -1,5 +1,6 @@
 import sys
 import json
+from pyperclip import copy
 from argparse import ArgumentParser
 from argparse import FileType
 from argparse import ArgumentTypeError
@@ -15,15 +16,23 @@ def format_sql_result(js):
 
 def get_pw(args):
     result = get_app(args.app)
-    sys.stdout.write(format_sql_result(result))
+    if args.copy:
+        try:
+            password = result.pop("password")
+        except KeyError:
+            pass
+        else:
+            copy(password)
+            result["msg"] = "password copied to clipboard"
+    print(format_sql_result(result))
 
 def set_pw(args):
     result = set_app(args.app, args.user, args.password)
-    sys.stdout.write(format_sql_result(result))
+    print(format_sql_result(result))
 
 def del_pw(args):
     result = del_app(args.app)
-    sys.stdout.write(format_sql_result(result))
+    print(format_sql_result(result))
 
 def dump(args):
     data = get_all(args.all_data)
@@ -33,7 +42,7 @@ def dump(args):
             columns = [k for k,_ in data[0].items()]
             lines = [columns, *lines]
         comma_join = ",".join
-        data_str = "\r\n".join(map(comma_join, lines)) + "\n"
+        data_str = "\r\n".join(map(comma_join, lines))
     else:
         data_str = "\n".join(map(format_sql_result, data))
     _ = args.file.write(data_str)
@@ -59,6 +68,9 @@ def create_parser():
     get_parser = sub.add_parser("get",
                                 parents=[common_parser],
                                 help="retrieve an application user/password")
+    get_parser.add_argument("--copy",
+                            action="store_true",
+                            help="copies the retrieved password to the clipboard")
     get_parser.set_defaults(func=get_pw)
     
     set_parser = sub.add_parser("set",

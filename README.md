@@ -25,8 +25,12 @@ The tool can then be used with the 'pw' command and the following arguments and 
 * get
 	> retrieve an application user name and password
     + app (label for the application that was stored using the 'set' argument)
+	+ --copy (flag, if present the retrieved password is copied to the clipboard and is not displayed on the console)
 ```console
 > pw get my_gmail
+```
+```console
+> pw get my_gmail --copy
 ```
 
 * set
